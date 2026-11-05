@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prediction Market Quant Agent | Kalshi & Polymarket</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#3b82f6', 600: '#2563eb' },
+            darkbg: '#0b0f19',
+            darkcard: '#111827',
+            darkborder: '#1f2937'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0f19; }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+  </style>
+</head>
+<body class="bg-[#090d16] text-gray-100 min-h-screen flex flex-col font-sans antialiased">
+
+  <!-- Header / Navigation -->
+  <header class="bg-[#0e1424] border-b border-gray-800 sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+        <i class="fa-solid fa-chart-line text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+          AceSammy Quant Agent
+          <span class="text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            PAPER TRADER
+          </span>
+        </h1>
+        <p class="text-xs text-gray-400">Kalshi & Polymarket Multi-Strategy Arbitrage & Risk Engine</p>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="flex items-center space-x-1 bg-gray-900/90 border border-gray-800 p-1 rounded-xl">
+      <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white shadow-sm flex items-center gap-2">
+        <i class="fa-solid fa-gauge-high"></i> Dashboard
+      </button>
+      <button onclick="switchTab('chat')" id="tab-btn-chat" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:text-white flex items-center gap-2">
+        <i class="fa-solid fa-comments"></i> Agent Chat & Memory
+      </button>
+      <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:text-white flex items-center gap-2">
+        <i class="fa-solid fa-chart-pie"></i> Quant Analytics
+      </button>
+      <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:text-white flex items-center gap-2">
+        <i class="fa-solid fa-shield-halved"></i> Live Safety Gate
+      </button>
+    </nav>
+  </header>
+
+  <!-- Metrics Ribbon -->
+  <section class="bg-[#0b101d] border-b border-gray-800/80 px-6 py-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl">
+      <div class="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Total Equity</div>
+      <div id="stat-equity" class="text-lg font-bold text-white mt-0.5 font-mono">$10,000.00</div>
+    </div>
+    <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl">
+      <div class="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Available Cash</div>
+      <div id="stat-cash" class="text-lg font-bold text-gray-200 mt-0.5 font-mono">$10,000.00</div>
+    </div>
+    <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl">
+      <div class="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Invested Capital</div>
+      <div id="stat-invested" class="text-lg font-bold text-blue-400 mt-0.5 font-mono">$0.00</div>
+    </div>
+    <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl">
+      <div class="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Unrealized PnL</div>
+      <div id="stat-unrealized" class="text-lg font-bold text-gray-300 mt-0.5 font-mono">$0.00</div>
+    </div>
+    <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl">
+      <div class="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Realized PnL</div>
+      <div id="stat-realized" class="text-lg font-bold text-gray-300 mt-0.5 font-mono">$0.00</div>
+    </div>
+    <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl">
+      <div class="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Win Rate / Sharpe</div>
+      <div id="stat-winrate" class="text-lg font-bold text-purple-400 mt-0.5 font-mono">0.0% / 0.00</div>
+    </div>
+  </section>
+
+  <!-- Main Content Areas -->
+  <main class="flex-1 p-6 overflow-y-auto">
+
+    <!-- ================= DASHBOARD TAB ================= -->
+    <div id="tab-dashboard" class="space-y-6">
+      
+      <!-- Action Bar -->
+      <div class="flex items-center justify-between bg-[#0e1424] border border-gray-800 p-4 rounded-2xl shadow-sm">
+        <div>
+          <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i class="fa-solid fa-radar text-blue-400"></i> Market Opportunities & Edge Scanner
+          </h2>
+          <p class="text-xs text-gray-400 mt-0.5">Scans Cross-Market Arbitrage, Dutch Books, and Spread Capture across Kalshi and Polymarket.</p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button onclick="triggerScan()" id="btn-scan" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-blue-500/20 transition flex items-center gap-2">
+            <i class="fa-solid fa-arrows-rotate"></i> Run Live Scan
+          </button>
+        </div>
+      </div>
+
+      <!-- Opportunities Table -->
+      <div class="bg-[#0e1424] border border-gray-800 rounded-2xl p-5 shadow-sm">
+        <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center justify-between">
+          <span>Detected Opportunities</span>
+          <span id="opp-count" class="text-gray-500 text-[11px] font-mono">0 opportunities</span>
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-gray-300">
+            <thead class="bg-gray-900/80 text-gray-400 border-b border-gray-800">
+              <tr>
+                <th class="py-2.5 px-3">Strategy</th>
+                <th class="py-2.5 px-3">Opportunity Details</th>
+                <th class="py-2.5 px-3">Theoretical Edge</th>
+                <th class="py-2.5 px-3">Est Fees</th>
+                <th class="py-2.5 px-3">Net Edge</th>
+                <th class="py-2.5 px-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="opportunities-table-body" class="divide-y divide-gray-800/60 font-mono">
+              <tr><td colspan="6" class="py-6 text-center text-gray-500">Click "Run Live Scan" to identify opportunities.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Grid: Positions & Trades -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Open Positions -->
+        <div class="bg-[#0e1424] border border-gray-800 rounded-2xl p-5 shadow-sm">
+          <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center justify-between">
+            <span>Open Positions</span>
+            <span id="pos-count" class="text-gray-500 text-[11px] font-mono">0 positions</span>
+          </h3>
+          <div class="overflow-x-auto max-h-[320px] overflow-y-auto">
+            <table class="w-full text-left text-xs text-gray-300">
+              <thead class="bg-gray-900/80 text-gray-400 border-b border-gray-800 sticky top-0">
+                <tr>
+                  <th class="py-2 px-3">Platform</th>
+                  <th class="py-2 px-3">Market</th>
+                  <th class="py-2 px-3">Outcome</th>
+                  <th class="py-2 px-3">Qty</th>
+                  <th class="py-2 px-3">Avg Price</th>
+                  <th class="py-2 px-3">Unrealized PnL</th>
+                </tr>
+              </thead>
+              <tbody id="positions-table-body" class="divide-y divide-gray-800/60 font-mono">
+                <tr><td colspan="6" class="py-6 text-center text-gray-500">No open positions.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recent Trades -->
+        <div class="bg-[#0e1424] border border-gray-800 rounded-2xl p-5 shadow-sm">
+          <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center justify-between">
+            <span>Recent Executed Fills</span>
+            <span id="trades-count" class="text-gray-500 text-[11px] font-mono">0 trades</span>
+          </h3>
+          <div class="overflow-x-auto max-h-[320px] overflow-y-auto">
+            <table class="w-full text-left text-xs text-gray-300">
+              <thead class="bg-gray-900/80 text-gray-400 border-b border-gray-800 sticky top-0">
+                <tr>
+                  <th class="py-2 px-3">Side</th>
+                  <th class="py-2 px-3">Platform</th>
+                  <th class="py-2 px-3">Market</th>
+                  <th class="py-2 px-3">Price</th>
+                  <th class="py-2 px-3">Fee</th>
+                  <th class="py-2 px-3">Slippage</th>
+                </tr>
+              </thead>
+              <tbody id="trades-table-body" class="divide-y divide-gray-800/60 font-mono">
+                <tr><td colspan="6" class="py-6 text-center text-gray-500">No executed trades yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ================= CHAT & MEMORY TAB ================= -->
+    <div id="tab-chat" class="hidden h-[calc(100vh-175px)] flex gap-4">
+      
+      <!-- Past Sessions Sidebar -->
+      <div class="w-64 bg-[#0e1424] border border-gray-800 rounded-2xl flex flex-col p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-clock-rotate-left"></i> Past Chats
+          </h3>
+          <button onclick="createNewSession()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white p-1.5 rounded-lg transition" title="New Session">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+        </div>
+        <div id="chat-sessions-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1">
+          <!-- Session items loaded dynamically -->
+        </div>
+      </div>
+
+      <!-- Main Chat Thread -->
+      <div class="flex-1 bg-[#0e1424] border border-gray-800 rounded-2xl flex flex-col overflow-hidden">
+        
+        <!-- Chat Header -->
+        <div class="p-3.5 border-b border-gray-800 flex items-center justify-between bg-gray-900/40">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div>
+              <div id="chat-session-title" class="text-xs font-semibold text-white">Strategy Assistant</div>
+              <div class="text-[10px] text-gray-400">Context-aware prediction market quant copilot</div>
+            </div>
+          </div>
+          <!-- Quick Suggestions -->
+          <div class="hidden sm:flex items-center space-x-2">
+            <button onclick="sendQuickPrompt('portfolio')" class="text-[11px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1 rounded-lg border border-gray-700">Portfolio</button>
+            <button onclick="sendQuickPrompt('scan')" class="text-[11px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1 rounded-lg border border-gray-700">Scan Arb</button>
+            <button onclick="sendQuickPrompt('positions')" class="text-[11px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1 rounded-lg border border-gray-700">Positions</button>
+            <button onclick="sendQuickPrompt('risk')" class="text-[11px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1 rounded-lg border border-gray-700">Risk</button>
+          </div>
+        </div>
+
+        <!-- Messages scroll container -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+          <!-- Messages inserted dynamically -->
+        </div>
+
+        <!-- Chat Input Bar -->
+        <div class="p-3 border-t border-gray-800 bg-[#090d16]">
+          <form onsubmit="handleChatSubmit(event)" class="flex gap-2">
+            <input type="text" id="chat-input" placeholder="Ask about trades, inspect markets, or run scans..." class="flex-1 bg-gray-900 border border-gray-700/80 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-sans" autocomplete="off" />
+            <button type="submit" id="btn-chat-send" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-blue-500/20 transition flex items-center gap-1.5">
+              <span>Send</span>
+              <i class="fa-solid fa-paper-plane text-xs"></i>
+            </button>
+          </form>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ================= ANALYTICS TAB ================= -->
+    <div id="tab-analytics" class="hidden space-y-6">
+      
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-[#0e1424] border border-gray-800 p-5 rounded-2xl">
+          <div class="text-xs text-gray-400 font-medium">Sharpe Ratio (Annualized)</div>
+          <div id="an-sharpe" class="text-2xl font-bold font-mono text-blue-400 mt-2">0.00</div>
+          <div class="text-[11px] text-gray-500 mt-1">Risk-adjusted excess return vs. benchmark</div>
+        </div>
+        <div class="bg-[#0e1424] border border-gray-800 p-5 rounded-2xl">
+          <div class="text-xs text-gray-400 font-medium">Sortino Ratio</div>
+          <div id="an-sortino" class="text-2xl font-bold font-mono text-indigo-400 mt-2">0.00</div>
+          <div class="text-[11px] text-gray-500 mt-1">Downside risk volatility adjusted return</div>
+        </div>
+        <div class="bg-[#0e1424] border border-gray-800 p-5 rounded-2xl">
+          <div class="text-xs text-gray-400 font-medium">Max Drawdown</div>
+          <div id="an-mdd" class="text-2xl font-bold font-mono text-rose-400 mt-2">0.00%</div>
+          <div class="text-[11px] text-gray-500 mt-1">Circuit breaker set at 15.0%</div>
+        </div>
+        <div class="bg-[#0e1424] border border-gray-800 p-5 rounded-2xl">
+          <div class="text-xs text-gray-400 font-medium">Fee Drag</div>
+          <div id="an-fee-drag" class="text-2xl font-bold font-mono text-amber-400 mt-2">0.00%</div>
+          <div class="text-[11px] text-gray-500 mt-1">Fees as % of total notional volume</div>
+        </div>
+      </div>
+
+      <!-- Brier Score & Probability Calibration Card -->
+      <div class="bg-[#0e1424] border border-gray-800 p-6 rounded-2xl space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-white">Prediction Market Probability Calibration</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Measures whether your entry prices reflect genuine empirical probabilities.</p>
+          </div>
+          <span class="text-xs font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-1 rounded-full">
+            Brier Score Engine
+          </span>
+        </div>
+        
+        <div class="bg-gray-900/60 border border-gray-800 p-4 rounded-xl text-xs text-gray-300 leading-relaxed space-y-2">
+          <p>
+            In prediction markets, profitability depends on <strong>calibration</strong>. The Brier score formula 
+            <code class="text-blue-300 font-mono">Brier = (1/N) * Σ(p - o)²</code> evaluates forecast accuracy, where 
+            <code class="text-emerald-400 font-mono">0.00</code> is theoretical perfection and 
+            <code class="text-rose-400 font-mono">0.25</code> represents a 50/50 uninformative coin toss.
+          </p>
+          <p class="text-gray-400">
+            As your paper trading positions resolve at settlement ($1.00 or $0.00), the calibration engine plots empirical frequency vs implied probability.
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= SETTINGS / LIVE SAFETY GATE TAB ================= -->
+    <div id="tab-settings" class="hidden space-y-6">
+      
+      <div class="bg-[#0e1424] border border-gray-800 p-6 rounded-2xl space-y-5 max-w-3xl">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-4">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-lock text-amber-400"></i> Execution Safety Gate
+            </h2>
+            <p class="text-xs text-gray-400 mt-1">Transitioning from realistic paper trading to real API capital execution.</p>
+          </div>
+          <span class="text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full">
+            CURRENT: PAPER SIMULATION
+          </span>
+        </div>
+
+        <div class="space-y-3 text-xs text-gray-300">
+          <div class="bg-gray-900/60 border border-gray-800 p-4 rounded-xl space-y-2">
+            <h4 class="font-semibold text-white">How the Pluggable Broker Works</h4>
+            <p class="text-gray-400 leading-relaxed">
+              All strategies and analytics operate through a single abstracted interface: <code class="text-blue-400 font-mono">BaseBroker</code>.
+              Your current setup uses <code class="text-emerald-400 font-mono">PaperExecutionEngine</code>, which checks real order books, simulates slippage, and charges accurate exchange fees with zero financial risk.
+            </p>
+          </div>
+
+          <div class="bg-gray-900/60 border border-gray-800 p-4 rounded-xl space-y-2">
+            <h4 class="font-semibold text-white">Steps to Enable Real Live APIs in the Future:</h4>
+            <ol class="list-decimal list-inside space-y-1.5 text-gray-400">
+              <li>Accumulate extensive paper-trading volume to verify Sharpe ratio and execution quality.</li>
+              <li>Provide Kalshi API Key & RSA Private Key in <code class="text-gray-200 font-mono">.env</code>.</li>
+              <li>Provide Polymarket CLOB API Key & Polygon Wallet Private Key in <code class="text-gray-200 font-mono">.env</code>.</li>
+              <li>Set <code class="text-gray-200 font-mono">TRADING_MODE=LIVE</code> and <code class="text-gray-200 font-mono">CONFIRM_LIVE_TRADING=True</code>.</li>
+            </ol>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Frontend Logic -->
+  <script>
+    let currentSessionId = 'sess_default';
+
+    async function loadPortfolio() {
+      try {
+        const res = await fetch('/api/portfolio');
+        const data = await res.json();
+        document.getElementById('stat-equity').innerText = `$${data.total_equity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        document.getElementById('stat-cash').innerText = `$${data.cash_balance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        document.getElementById('stat-invested').innerText = `$${data.invested_capital.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        
+        const unEl = document.getElementById('stat-unrealized');
+        unEl.innerText = `${data.unrealized_pnl >= 0 ? '+' : ''}$${data.unrealized_pnl.toFixed(2)}`;
+        unEl.className = `text-lg font-bold font-mono mt-0.5 ${data.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+        const reEl = document.getElementById('stat-realized');
+        reEl.innerText = `${data.realized_pnl >= 0 ? '+' : ''}$${data.realized_pnl.toFixed(2)}`;
+        reEl.className = `text-lg font-bold font-mono mt-0.5 ${data.realized_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+      } catch (err) {
+        console.error('Failed to load portfolio:', err);
+      }
+    }
+
+    async function loadPositions() {
+      try {
+        const res = await fetch('/api/positions');
+        const positions = await res.json();
+        const tbody = document.getElementById('positions-table-body');
+        document.getElementById('pos-count').innerText = `${positions.length} positions`;
+
+        if (!positions || positions.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-gray-500">No open positions.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = positions.map(p => `
+          <tr class="hover:bg-gray-800/40">
+            <td class="py-2.5 px-3 font-semibold text-blue-400">${p.platform}</td>
+            <td class="py-2.5 px-3 text-white max-w-[200px] truncate" title="${p.market_title}">${p.market_title}</td>
+            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${p.outcome === 'YES' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">${p.outcome}</span></td>
+            <td class="py-2.5 px-3">${p.quantity}</td>
+            <td class="py-2.5 px-3">$${p.avg_entry_price.toFixed(3)}</td>
+            <td class="py-2.5 px-3 ${p.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${p.unrealized_pnl >= 0 ? '+' : ''}$${p.unrealized_pnl.toFixed(2)}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load positions:', err);
+      }
+    }
+
+    async function loadTrades() {
+      try {
+        const res = await fetch('/api/trades');
+        const trades = await res.json();
+        const tbody = document.getElementById('trades-table-body');
+        document.getElementById('trades-count').innerText = `${trades.length} trades`;
+
+        if (!trades || trades.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-gray-500">No executed trades yet.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = trades.map(t => `
+          <tr class="hover:bg-gray-800/40">
+            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${t.side === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">${t.side}</span></td>
+            <td class="py-2.5 px-3 text-blue-400">${t.platform}</td>
+            <td class="py-2.5 px-3 text-gray-200 max-w-[180px] truncate" title="${t.market_title}">${t.market_title}</td>
+            <td class="py-2.5 px-3">$${t.price.toFixed(3)}</td>
+            <td class="py-2.5 px-3 text-gray-400">$${t.fee_paid.toFixed(4)}</td>
+            <td class="py-2.5 px-3 text-gray-400">$${t.slippage.toFixed(3)}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load trades:', err);
+      }
+    }
+
+    async function loadOpportunities() {
+      try {
+        const res = await fetch('/api/opportunities');
+        const opps = await res.json();
+        renderOpportunities(opps);
+      } catch (err) {
+        console.error('Failed to load opportunities:', err);
+      }
+    }
+
+    function renderOpportunities(opps) {
+      const tbody = document.getElementById('opportunities-table-body');
+      document.getElementById('opp-count').innerText = `${opps.length} opportunities`;
+
+      if (!opps || opps.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-gray-500">No opportunities detected. Click "Run Live Scan" above.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = opps.map((o, idx) => `
+        <tr class="hover:bg-gray-800/40">
+          <td class="py-2.5 px-3 text-purple-400 font-semibold">${o.strategy_name}</td>
+          <td class="py-2.5 px-3 text-white max-w-[340px] truncate" title="${o.description}">${o.description}</td>
+          <td class="py-2.5 px-3 text-gray-300">${(o.theoretical_edge * 100).toFixed(1)}%</td>
+          <td class="py-2.5 px-3 text-gray-400">$${o.estimated_fees.toFixed(3)}</td>
+          <td class="py-2.5 px-3 text-emerald-400 font-bold">${(o.net_edge * 100).toFixed(1)}%</td>
+          <td class="py-2.5 px-3 text-right">
+            <button onclick="executePaperBuy('${o.platform_a}', '${o.ticker_a}', ${o.theoretical_edge})" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-semibold transition">
+              Paper Fill
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function triggerScan() {
+      const btn = document.getElementById('btn-scan');
+      btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Scanning Markets...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/scan', { method: 'POST' });
+        const data = await res.json();
+        renderOpportunities(data.opportunities);
+      } catch (err) {
+        console.error('Scan error:', err);
+      } finally {
+        btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Run Live Scan';
+        btn.disabled = false;
+        loadPortfolio();
+      }
+    }
+
+    async function executePaperBuy(platform, ticker, edge) {
+      try {
+        const orderReq = {
+          platform: platform,
+          market_ticker: ticker,
+          outcome: 'YES',
+          side: 'BUY',
+          order_type: 'MARKET',
+          price: 0.50,
+          quantity: 20,
+          strategy_name: 'MANUAL'
+        };
+        const res = await fetch('/api/trade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderReq)
+        });
+        const order = await res.json();
+        alert(`Executed paper order ${order.id}: ${order.status}`);
+        loadPortfolio();
+        loadPositions();
+        loadTrades();
+      } catch (err) {
+        alert('Trade execution error: ' + err);
+      }
+    }
+
+    async function loadAnalytics() {
+      try {
+        const res = await fetch('/api/analytics');
+        const data = await res.json();
+        const m = data.metrics;
+        document.getElementById('an-sharpe').innerText = m.sharpe_ratio.toFixed(2);
+        document.getElementById('an-sortino').innerText = m.sortino_ratio.toFixed(2);
+        document.getElementById('an-mdd').innerText = `${(m.max_drawdown * 100).toFixed(2)}%`;
+        document.getElementById('an-fee-drag').innerText = `${data.fee_drag.fee_drag_percentage.toFixed(2)}%`;
+        document.getElementById('stat-winrate').innerText = `${(m.win_rate * 100).toFixed(1)}% / ${m.sharpe_ratio.toFixed(2)}`;
+      } catch (err) {
+        console.error('Analytics load error:', err);
+      }
+    }
+
+    // ----------------- Chat & Memory ----------------- //
+
+    async function loadChatSessions() {
+      try {
+        const res = await fetch('/api/chat/sessions');
+        const sessions = await res.json();
+        const listEl = document.getElementById('chat-sessions-list');
+
+        if (!sessions || sessions.length === 0) {
+          listEl.innerHTML = '<div class="text-[11px] text-gray-500 py-2">No past sessions.</div>';
+          return;
+        }
+
+        listEl.innerHTML = sessions.map(s => `
+          <button onclick="selectSession('${s.id}', '${s.title.replace(/'/g, "\\'")}')" class="w-full text-left p-2 rounded-xl text-xs transition flex flex-col ${s.id === currentSessionId ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-gray-400 hover:bg-gray-800/60 hover:text-white'}">
+            <span class="truncate">${s.title}</span>
+            <span class="text-[10px] opacity-60 mt-0.5">${new Date(s.updated_at).toLocaleDateString()}</span>
+          </button>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load chat sessions:', err);
+      }
+    }
+
+    async function selectSession(sessionId, title) {
+      currentSessionId = sessionId;
+      document.getElementById('chat-session-title').innerText = title;
+      loadChatSessions();
+      loadSessionMessages(sessionId);
+    }
+
+    async function createNewSession() {
+      const title = prompt('Enter a title for the new chat session:', 'Market Analysis');
+      if (!title) return;
+      try {
+        const res = await fetch('/api/chat/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: title })
+        });
+        const session = await res.json();
+        selectSession(session.id, session.title);
+      } catch (err) {
+        console.error('Error creating session:', err);
+      }
+    }
+
+    async function loadSessionMessages(sessionId) {
+      try {
+        const res = await fetch(`/api/chat/sessions/${sessionId}/messages`);
+        const messages = await res.json();
+        const container = document.getElementById('chat-messages');
+
+        if (!messages || messages.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-10 text-gray-500 text-xs">
+              <i class="fa-solid fa-robot text-2xl mb-2 text-gray-600 block"></i>
+              Ask anything about your prediction market portfolio, live arbitrage scans, or specific markets.
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = messages.map(m => `
+          <div class="flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}">
+            <div class="max-w-[85%] rounded-2xl p-3.5 text-xs ${m.role === 'user' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-900 border border-gray-800 text-gray-200 shadow-sm leading-relaxed'}">
+              <div class="prose prose-invert prose-xs">${marked.parse(m.content)}</div>
+            </div>
+          </div>
+        `).join('');
+
+        container.scrollTop = container.scrollHeight;
+      } catch (err) {
+        console.error('Error loading messages:', err);
+      }
+    }
+
+    async function handleChatSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      appendMessage('user', text);
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: currentSessionId, message: text })
+        });
+        const data = await res.json();
+        appendMessage('assistant', data.response);
+        loadChatSessions();
+        loadPortfolio();
+      } catch (err) {
+        appendMessage('assistant', 'Error communicating with agent: ' + err);
+      }
+    }
+
+    function appendMessage(role, content) {
+      const container = document.getElementById('chat-messages');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+      msgDiv.innerHTML = `
+        <div class="max-w-[85%] rounded-2xl p-3.5 text-xs ${role === 'user' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-900 border border-gray-800 text-gray-200 shadow-sm leading-relaxed'}">
+          <div class="prose prose-invert prose-xs">${marked.parse(content)}</div>
+        </div>
+      `;
+      container.appendChild(msgDiv);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function sendQuickPrompt(txt) {
+      document.getElementById('chat-input').value = txt;
+      handleChatSubmit(new Event('submit'));
+    }
+
+    // ----------------- Tab Navigation ----------------- //
+
+    function switchTab(tabId) {
+      ['dashboard', 'chat', 'analytics', 'settings'].forEach(id => {
+        document.getElementById(`tab-${id}`).classList.add('hidden');
+        const btn = document.getElementById(`tab-btn-${id}`);
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+        btn.classList.add('text-gray-400');
+      });
+
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+      activeBtn.classList.remove('text-gray-400');
+      activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+
+      if (tabId === 'chat') {
+        loadChatSessions();
+        loadSessionMessages(currentSessionId);
+      } else if (tabId === 'analytics') {
+        loadAnalytics();
+      }
+    }
+
+    // Initialize data on load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadPortfolio();
+      loadPositions();
+      loadTrades();
+      loadOpportunities();
+      loadAnalytics();
+      loadChatSessions();
+    });
+  </script>
+</body>
+</html>
